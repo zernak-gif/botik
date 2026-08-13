@@ -26,27 +26,25 @@ def start(message):
 @bot.message_handler(content_types=['web_app_data'])
 def handle_webapp_data(message):
     try:
-        print(f"📩 Получены данные: {message.web_app_data.data}")
+        # Получаем данные из веб-приложения
         data = json.loads(message.web_app_data.data)
         
+        # Проверяем, что это заказ
         if data.get('action') == 'new_order':
             order_text = data.get('message', '')
             
-            # Отправляем админу
+            # === ОТПРАВЛЯЕМ ЗАКАЗ АДМИНУ ===
             bot.send_message(ADMIN_ID, order_text, parse_mode='HTML')
+            bot.send_message(ADMIN_ID, "🔔 Новый заказ!")
             
-            # Подтверждение пользователю
+            # === ОТВЕЧАЕМ ПОЛЬЗОВАТЕЛЮ ===
             bot.send_message(
                 message.chat.id,
                 "✅ Заказ принят! Админ свяжется с вами."
             )
             
-            # Дополнительное уведомление админу
-            bot.send_message(ADMIN_ID, "🔔 Новый заказ!")
-            
-            print("✅ Заказ отправлен админу!")
-        else:
-            print(f"⚠️ Неизвестное действие: {data.get('action')}")
+            # === ВСЁ, ЗАКАЗ ОТПРАВЛЕН, НИЧЕГО НЕ СОХРАНЯЕМ ===
+            print("✅ Заказ отправлен админу и забыт.")
             
     except Exception as e:
         print(f"❌ Ошибка: {e}")
