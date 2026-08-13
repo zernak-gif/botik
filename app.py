@@ -10,9 +10,11 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 BOT_TOKEN = os.environ.get("8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0")
 ADMIN_ID = 976653458
 
-# Проверка загрузки переменных
-print(f"🔑 Токен загружен: {BOT_TOKEN[:10] if BOT_TOKEN else 'НЕТ ТОКЕНА!'}...")
-print(f"👤 Админ ID: {ADMIN_ID}")
+# === ПРОВЕРКА ТОКЕНА ===
+if not BOT_TOKEN:
+    print("❌ ОШИБКА: TELEGRAM_TOKEN не найден в переменных окружения!")
+else:
+    print(f"✅ Токен загружен: {BOT_TOKEN[:10]}...")
 
 # Логирование
 logging.basicConfig(
@@ -22,11 +24,11 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
-# === ОБРАБОТЧИКИ КОМАНД БОТА ===
+# === ОБРАБОТЧИКИ БОТА ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Это бот для заказа одежды STYLEVTB.\n\n"
-        "👇 Нажми на кнопку меню, чтобы открыть приложение и сделать заказ.\n\n"
+        "👇 Нажми на кнопку меню (иконка внизу слева), чтобы открыть приложение и сделать заказ.\n\n"
         "📌 Связаться с админом: @vodkatrip"
     )
 
@@ -41,12 +43,8 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "Админ свяжется с вами в ближайшее время.\n\n"
                 "📌 @vodkatrip"
             )
-            await context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text="🔔 Новый заказ! Проверьте сообщение выше."
-            )
     except Exception as e:
-        print(f"❌ Ошибка в handle_webapp_data: {e}")
+        print(f"❌ Ошибка: {e}")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -57,8 +55,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "4. Нажми 'ОТПРАВИТЬ'"
     )
 
-# === ЗАПУСК БОТА В ОТДЕЛЬНОМ ПОТОКЕ ===
+# === ЗАПУСК БОТА ===
 def run_bot():
+    if not BOT_TOKEN:
+        print("❌ Бот не запущен: нет токена")
+        return
+    
     try:
         print("🚀 Запускаю бота...")
         application = Application.builder().token(BOT_TOKEN).build()
@@ -74,18 +76,11 @@ def run_bot():
         
         application.run_polling(allowed_updates=Update.ALL_TYPES)
     except Exception as e:
-        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА при запуске бота: {e}")
+        print(f"❌ ОШИБКА: {e}")
         import traceback
         traceback.print_exc()
 
-# === ЗАПУСК БОТА ПРИ ЗАГРУЗКЕ МОДУЛЯ ===
-# Это сработает даже при запуске через gunicorn
-print("🔄 Инициализация модуля...")
-bot_thread = threading.Thread(target=run_bot, daemon=True)
-bot_thread.start()
-print("✅ Поток бота запущен")
-
-# === FLASK ДЛЯ RENDER ===
+# === FLASK ===
 @app.route('/')
 def home():
     return "🤖 Бот STYLEVTB работает! Заказы принимаются."
@@ -94,8 +89,15 @@ def home():
 def health():
     return "OK", 200
 
-# === ТОЧКА ВХОДА (для локального запуска) ===
-if __name__ == '__main__':
+# === ГЛАВНАЯ ТОЧКА ВХОДА ===
+# Запускаем бота в фоновом потоке ПРИ ЗАГРУЗКЕ МОДУЛЯ
+print("🔄 Запуск бота в фоновом потоке...")
+bot_thread = threading.Thread(target=run_bot, daemon=True)
+bot_thread.start()
+print("✅ Поток бота запущен")
+
+# Точка входа для Gunicorn
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🌐 Flask сервер запущен на порту {port}")
     app.run(host='0.0.0.0', port=port)
