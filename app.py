@@ -13,32 +13,44 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# === ОБРАБОТЧИКИ ===
+# === ОБРАБОТЧИК КОМАНДЫ /start ===
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(
         message.chat.id,
-        "👋 Привет! Это бот STYLEVTB.\nНажми кнопку меню, чтобы сделать заказ."
+        "👋 Привет! Это бот STYLEVTB.\n"
+        "Нажми кнопку меню, чтобы сделать заказ."
     )
 
+# === ОБРАБОТЧИК WEB_APP_DATA ===
 @bot.message_handler(content_types=['web_app_data'])
 def handle_webapp_data(message):
     try:
+        print(f"📩 Получены данные: {message.web_app_data.data}")
         data = json.loads(message.web_app_data.data)
+        
         if data.get('action') == 'new_order':
-            order_message = data.get('message', '')
+            order_text = data.get('message', '')
+            
             # Отправляем админу
-            bot.send_message(ADMIN_ID, order_message, parse_mode='HTML')
-            # Отвечаем пользователю
+            bot.send_message(ADMIN_ID, order_text, parse_mode='HTML')
+            
+            # Подтверждение пользователю
             bot.send_message(
                 message.chat.id,
                 "✅ Заказ принят! Админ свяжется с вами."
             )
+            
             # Дополнительное уведомление админу
             bot.send_message(ADMIN_ID, "🔔 Новый заказ!")
-            print("✅ Заказ обработан и отправлен админу!")
+            
+            print("✅ Заказ отправлен админу!")
+        else:
+            print(f"⚠️ Неизвестное действие: {data.get('action')}")
+            
     except Exception as e:
         print(f"❌ Ошибка: {e}")
+        bot.send_message(message.chat.id, "❌ Ошибка при обработке заказа.")
 
 # === ВЕБХУК ===
 @app.route('/webhook', methods=['POST'])
@@ -62,4 +74,3 @@ def health():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-    
