@@ -7,15 +7,12 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # === НАСТРОЙКИ ===
-BOT_TOKEN ="8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0"
-BOT_TOKEN = os.environ.get("8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0")
+# ВСТАВЬ СВОЙ ТОКЕН СЮДА (полностью, вместе с двоеточием)
+BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"  # ← ЗАМЕНИ НА СВОЙ ТОКЕН!
 ADMIN_ID = 976653458
 
-# === ПРОВЕРКА ТОКЕНА ===
-if not BOT_TOKEN:
-    print("❌ ОШИБКА: TELEGRAM_TOKEN не найден в переменных окружения!")
-else:
-    print(f"✅ Токен загружен: {BOT_TOKEN[:10]}...")
+# Проверка, что токен загружен
+print(f"✅ Токен загружен: {BOT_TOKEN[:10]}...")
 
 # Логирование
 logging.basicConfig(
@@ -58,10 +55,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === ЗАПУСК БОТА ===
 def run_bot():
-    if not BOT_TOKEN:
-        print("❌ Бот не запущен: нет токена")
-        return
-    
     try:
         print("🚀 Запускаю бота...")
         application = Application.builder().token(BOT_TOKEN).build()
@@ -77,7 +70,7 @@ def run_bot():
         
         application.run_polling(allowed_updates=Update.ALL_TYPES)
     except Exception as e:
-        print(f"❌ ОШИБКА: {e}")
+        print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
         import traceback
         traceback.print_exc()
 
@@ -91,13 +84,11 @@ def health():
     return "OK", 200
 
 # === ГЛАВНАЯ ТОЧКА ВХОДА ===
-# Запускаем бота в фоновом потоке ПРИ ЗАГРУЗКЕ МОДУЛЯ
 print("🔄 Запуск бота в фоновом потоке...")
 bot_thread = threading.Thread(target=run_bot, daemon=True)
 bot_thread.start()
 print("✅ Поток бота запущен")
 
-# Точка входа для Gunicorn
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🌐 Flask сервер запущен на порту {port}")
