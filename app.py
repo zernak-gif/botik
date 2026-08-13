@@ -22,20 +22,33 @@ def start(message):
         "Нажми кнопку меню, чтобы сделать заказ."
     )
 
-@bot.message_handler(content_types=['web_app_data'])
-def handle_webapp_data(message):
-    try:
-        data = json.loads(message.web_app_data.data)
-        if data.get('action') == 'new_order':
-            order_message = data.get('message', '')
-            bot.send_message(ADMIN_ID, order_message, parse_mode='HTML')
-            bot.send_message(
-                message.chat.id,
-                "✅ Заказ принят! Админ свяжется с вами."
-            )
-            bot.send_message(ADMIN_ID, "🔔 Новый заказ!")
-    except Exception as e:
-        print(f"❌ Ошибка: {e}")
+# ВАЖНО: Ловим все сообщения для отладки
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+    print(f"📩 Получено сообщение. Тип: {message.content_type}")
+    print(f"📩 Текст: {message.text}")
+    
+    # Проверяем web_app_data
+    if hasattr(message, 'web_app_data') and message.web_app_data:
+        print(f"📩 Web App Data: {message.web_app_data.data}")
+        try:
+            data = json.loads(message.web_app_data.data)
+            print(f"📩 Распарсенные данные: {data}")
+            
+            if data.get('action') == 'new_order':
+                order_message = data.get('message', '')
+                print(f"📩 Сообщение для админа: {order_message}")
+                
+                # Отправляем админу
+                bot.send_message(ADMIN_ID, order_message, parse_mode='HTML')
+                bot.send_message(
+                    message.chat.id,
+                    "✅ Заказ принят! Админ свяжется с вами."
+                )
+                bot.send_message(ADMIN_ID, "🔔 Новый заказ!")
+                print("✅ Заказ обработан и отправлен админу!")
+        except Exception as e:
+            print(f"❌ Ошибка: {e}")
 
 # === ВЕБХУК ===
 @app.route('/webhook', methods=['POST'])
