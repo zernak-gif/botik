@@ -7,6 +7,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # === НАСТРОЙКИ ===
+BOT_TOKEN ="8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0"
 BOT_TOKEN = os.environ.get("8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0")
 ADMIN_ID = 976653458
 
