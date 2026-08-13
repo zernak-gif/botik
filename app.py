@@ -2,16 +2,15 @@ import os
 import json
 import threading
 import logging
+import time
 from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # === НАСТРОЙКИ ===
-# ВСТАВЬ СВОЙ ТОКЕН СЮДА (полностью, вместе с двоеточием)
-BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"  # ← ЗАМЕНИ НА СВОЙ ТОКЕН!
+BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"  # ← ВСТАВЬ ПОЛНЫЙ ТОКЕН!
 ADMIN_ID = 976653458
 
-# Проверка, что токен загружен
 print(f"✅ Токен загружен: {BOT_TOKEN[:10]}...")
 
 # Логирование
@@ -26,7 +25,7 @@ app = Flask(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Это бот для заказа одежды STYLEVTB.\n\n"
-        "👇 Нажми на кнопку меню (иконка внизу слева), чтобы открыть приложение и сделать заказ.\n\n"
+        "👇 Нажми на кнопку меню, чтобы открыть приложение и сделать заказ.\n\n"
         "📌 Связаться с админом: @vodkatrip"
     )
 
@@ -57,6 +56,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     try:
         print("🚀 Запускаю бота...")
+        
+        # Проверка подключения к Telegram
+        print("🔄 Проверка подключения к Telegram API...")
+        import httpx
+        response = httpx.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=10)
+        data = response.json()
+        if data.get('ok'):
+            print(f"✅ Бот успешно подключен: @{data['result']['username']}")
+        else:
+            print(f"❌ Ошибка подключения: {data}")
+            return
+        
         application = Application.builder().token(BOT_TOKEN).build()
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("help", help_command))
