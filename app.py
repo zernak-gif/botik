@@ -2,13 +2,12 @@ import os
 import json
 import threading
 import logging
-import time
-from flask import Flask
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from flask import Flask, request
+import telebot
+from telebot.types import Update
 
 # === НАСТРОЙКИ ===
-BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"  # ← ВСТАВЬ ПОЛНЫЙ ТОКЕН!
+BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"  # ← ТВОЙ ТОКЕН
 ADMIN_ID = 976653458
 
 print(f"✅ Токен загружен: {BOT_TOKEN[:10]}...")
@@ -21,30 +20,23 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
-# === ОБРАБОТЧИКИ БОТА ===
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+# === СОЗДАЕМ БОТА ===
+bot = telebot.TeleBot(BOT_TOKEN)
+
+# === ОБРАБОТЧИКИ КОМАНД ===
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(
+        message.chat.id,
         "👋 Привет! Это бот для заказа одежды STYLEVTB.\n\n"
-        "👇 Нажми на кнопку меню, чтобы открыть приложение и сделать заказ.\n\n"
+        "👇 Нажми на кнопку меню (иконка внизу слева), чтобы открыть приложение и сделать заказ.\n\n"
         "📌 Связаться с админом: @vodkatrip"
     )
 
-async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        data = json.loads(update.message.web_app_data.data)
-        if data.get('action') == 'new_order':
-            message_text = data.get('message', '')
-            await context.bot.send_message(chat_id=ADMIN_ID, text=message_text, parse_mode='HTML')
-            await update.message.reply_text(
-                "✅ Ваш заказ принят!\n"
-                "Админ свяжется с вами в ближайшее время.\n\n"
-                "📌 @vodkatrip"
-            )
-    except Exception as e:
-        print(f"❌ Ошибка: {e}")
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+@bot.message_handler(commands=['help'])
+def help_command(message):
+    bot.send_message(
+        message.chat.id,
         "📖 Как сделать заказ:\n\n"
         "1. Нажми на кнопку меню\n"
         "2. Выбери категорию\n"
@@ -52,34 +44,38 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "4. Нажми 'ОТПРАВИТЬ'"
     )
 
+# === ОБРАБОТЧИК ДАННЫХ ИЗ ВЕБ-ПРИЛОЖЕНИЯ ===
+@bot.message_handler(content_types=['web_app_data'])
+def handle_webapp_data(message):
+    try:
+        data = json.loads(message.web_app_data.data)
+        if data.get('action') == 'new_order':
+            order_message = data.get('message', '')
+            # Отправляем админу
+            bot.send_message(ADMIN_ID, order_message, parse_mode='HTML')
+            # Отвечаем пользователю
+            bot.send_message(
+                message.chat.id,
+                "✅ Ваш заказ принят!\n"
+                "Админ свяжется с вами в ближайшее время.\n\n"
+                "📌 @vodkatrip"
+            )
+            # Дополнительное уведомление админу
+            bot.send_message(ADMIN_ID, "🔔 Новый заказ! Проверьте сообщение выше.")
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        bot.send_message(message.chat.id, "❌ Произошла ошибка при обработке заказа.")
+
 # === ЗАПУСК БОТА ===
 def run_bot():
     try:
         print("🚀 Запускаю бота...")
-        
-        # Проверка подключения к Telegram
-        print("🔄 Проверка подключения к Telegram API...")
-        import httpx
-        response = httpx.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=10)
-        data = response.json()
-        if data.get('ok'):
-            print(f"✅ Бот успешно подключен: @{data['result']['username']}")
-        else:
-            print(f"❌ Ошибка подключения: {data}")
-            return
-        
-        application = Application.builder().token(BOT_TOKEN).build()
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("help", help_command))
-        application.add_handler(MessageHandler(
-            filters.StatusUpdate.WEB_APP_DATA,
-            handle_webapp_data
-        ))
-        
-        print("🤖 Бот STYLEVTB успешно запущен!")
+        # Проверка подключения
+        bot.get_me()
+        print("✅ Бот успешно подключен к Telegram!")
+        print("🤖 Бот STYLEVTB запущен!")
         print(f"📨 Заказы будут отправляться админу (ID: {ADMIN_ID})")
-        
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        bot.infinity_polling(timeout=10, long_polling_timeout=5)
     except Exception as e:
         print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
         import traceback
@@ -94,7 +90,7 @@ def home():
 def health():
     return "OK", 200
 
-# === ГЛАВНАЯ ТОЧКА ВХОДА ===
+# === ТОЧКА ВХОДА ===
 print("🔄 Запуск бота в фоновом потоке...")
 bot_thread = threading.Thread(target=run_bot, daemon=True)
 bot_thread.start()
