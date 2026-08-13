@@ -2,26 +2,24 @@ import os
 import json
 import threading
 import logging
+import time
 from flask import Flask
 import telebot
 from telebot.types import Message
 
 # === НАСТРОЙКИ ===
-BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"  # ТВОЙ ТОКЕН
-ADMIN_ID = 976653458  # ТВОЙ ID
+BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"
+ADMIN_ID = 976653458
 
 print(f"✅ Токен загружен: {BOT_TOKEN[:10]}...")
 print(f"👤 Админ ID: {ADMIN_ID}")
 
-# Логирование
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
 app = Flask(__name__)
-
-# === СОЗДАЕМ БОТА ===
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # === ОБРАБОТЧИКИ КОМАНД ===
@@ -45,23 +43,18 @@ def help_command(message):
         "4. Нажми 'ОТПРАВИТЬ'"
     )
 
-# === ОБРАБОТЧИК ВСЕХ СООБЩЕНИЙ (для отладки) ===
+# === ОБРАБОТЧИК ВСЕХ СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
-    print(f"📩 Получено сообщение: {message.text}")
-    print(f"📩 Тип: {message.content_type}")
-    print(f"📩 Chat ID: {message.chat.id}")
+    print(f"📩 Получено сообщение. Тип: {message.content_type}")
     
-    # Проверяем, есть ли web_app_data
     if hasattr(message, 'web_app_data') and message.web_app_data:
         print(f"📩 Web App Data: {message.web_app_data.data}")
         try:
             data = json.loads(message.web_app_data.data)
-            print(f"📩 Распарсенные данные: {data}")
             
             if data.get('action') == 'new_order':
                 order_message = data.get('message', '')
-                print(f"📩 Сообщение для админа: {order_message}")
                 
                 # Отправляем админу
                 bot.send_message(ADMIN_ID, order_message, parse_mode='HTML')
@@ -72,34 +65,29 @@ def handle_all_messages(message):
                     "Админ свяжется с вами в ближайшее время.\n\n"
                     "📌 @vodkatrip"
                 )
-                # Дополнительное уведомление админу
                 bot.send_message(ADMIN_ID, "🔔 Новый заказ! Проверьте сообщение выше.")
-                
                 print("✅ Заказ обработан и отправлен админу!")
-            else:
-                print(f"⚠️ Неизвестное действие: {data.get('action')}")
                 
-        except json.JSONDecodeError as e:
-            print(f"❌ Ошибка парсинга JSON: {e}")
         except Exception as e:
-            print(f"❌ Ошибка обработки web_app_data: {e}")
-            import traceback
-            traceback.print_exc()
-    else:
-        # Если это обычное текстовое сообщение — просто логируем
-        if message.text and not message.text.startswith('/'):
-            print(f"ℹ️ Обычное сообщение: {message.text[:50]}...")
+            print(f"❌ Ошибка: {e}")
 
 # === ЗАПУСК БОТА ===
 def run_bot():
     try:
         print("🚀 Запускаю бота...")
-        # Проверка подключения
         bot_info = bot.get_me()
         print(f"✅ Бот успешно подключен к Telegram! @{bot_info.username}")
+        
+        # Очистка старых сессий
+        print("🔄 Очистка старых сессий...")
+        bot.remove_webhook()
+        time.sleep(2)
+        print("✅ Вебхук удален")
+        
         print("🤖 Бот STYLEVTB запущен!")
         print(f"📨 Заказы будут отправляться админу (ID: {ADMIN_ID})")
         print("🔄 Ожидание сообщений...")
+        
         bot.infinity_polling(timeout=10, long_polling_timeout=5)
     except Exception as e:
         print(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}")
