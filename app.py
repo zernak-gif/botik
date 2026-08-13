@@ -1,8 +1,7 @@
 import os
 import json
 import logging
-import time
-from flask import Flask
+from flask import Flask, request, jsonify
 import telebot
 
 # === НАСТРОЙКИ ===
@@ -38,7 +37,16 @@ def handle_webapp_data(message):
     except Exception as e:
         print(f"❌ Ошибка: {e}")
 
-# === FLASK ===
+# === ВЕБХУК ===
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return jsonify({'status': 'ok'}), 200
+    return jsonify({'status': 'error'}), 403
+
 @app.route('/')
 def home():
     return "🤖 Бот STYLEVTB работает!"
@@ -49,29 +57,5 @@ def health():
 
 # === ЗАПУСК ===
 if __name__ == "__main__":
-    # Принудительно удаляем вебхук и останавливаем старые сессии
-    print("🔄 Очистка старых сессий...")
-    try:
-        bot.remove_webhook()
-        print("✅ Вебхук удален")
-    except Exception as e:
-        print(f"⚠️ Ошибка удаления вебхука: {e}")
-    
-    time.sleep(2)
-    
-    print("🚀 Запускаю бота через polling...")
-    
-    # Запускаем бота в отдельном потоке (чтобы Flask тоже работал)
-    import threading
-    def run_bot():
-        try:
-            bot.infinity_polling(timeout=10, long_polling_timeout=5)
-        except Exception as e:
-            print(f"❌ Ошибка бота: {e}")
-    
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    print("✅ Бот запущен в фоновом потоке")
-    
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
