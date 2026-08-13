@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # === НАСТРОЙКИ ===
-BOT_TOKEN = os.environ.get("8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o")
+BOT_TOKEN = os.environ.get("8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0")
 ADMIN_ID = 976653458
 
 # Проверка загрузки переменных
@@ -40,6 +40,10 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "✅ Ваш заказ принят!\n"
                 "Админ свяжется с вами в ближайшее время.\n\n"
                 "📌 @vodkatrip"
+            )
+            await context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text="🔔 Новый заказ! Проверьте сообщение выше."
             )
     except Exception as e:
         print(f"❌ Ошибка в handle_webapp_data: {e}")
@@ -74,6 +78,13 @@ def run_bot():
         import traceback
         traceback.print_exc()
 
+# === ЗАПУСК БОТА ПРИ ЗАГРУЗКЕ МОДУЛЯ ===
+# Это сработает даже при запуске через gunicorn
+print("🔄 Инициализация модуля...")
+bot_thread = threading.Thread(target=run_bot, daemon=True)
+bot_thread.start()
+print("✅ Поток бота запущен")
+
 # === FLASK ДЛЯ RENDER ===
 @app.route('/')
 def home():
@@ -83,13 +94,8 @@ def home():
 def health():
     return "OK", 200
 
-# === ТОЧКА ВХОДА ===
+# === ТОЧКА ВХОДА (для локального запуска) ===
 if __name__ == '__main__':
-    # Запускаем бота в фоновом потоке
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    
-    # Запускаем Flask
     port = int(os.environ.get("PORT", 5000))
     print(f"🌐 Flask сервер запущен на порту {port}")
     app.run(host='0.0.0.0', port=port)
