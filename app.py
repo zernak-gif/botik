@@ -1,11 +1,10 @@
 import os
 import json
 import logging
-import time
-import threading
-from flask import Flask
+from flask import Flask, request, jsonify
 import telebot
 
+# === НАСТРОЙКИ ===
 BOT_TOKEN = "8793997691:AAGNe0PQs674SYYnNLwdr9giqAeb-8wfC0o"
 ADMIN_ID = 976653458
 
@@ -14,42 +13,53 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 bot = telebot.TeleBot(BOT_TOKEN)
 
+# === ОБРАБОТЧИКИ ===
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "👋 Бот работает!")
+    bot.send_message(
+        message.chat.id,
+        "👋 Привет! Это бот STYLEVTB.\nНажми кнопку меню, чтобы сделать заказ."
+    )
 
 @bot.message_handler(content_types=['web_app_data'])
 def handle_webapp_data(message):
     try:
         data = json.loads(message.web_app_data.data)
         if data.get('action') == 'new_order':
-            bot.send_message(ADMIN_ID, data.get('message', ''), parse_mode='HTML')
-            bot.send_message(message.chat.id, "✅ Заказ принят!")
+            order_message = data.get('message', '')
+            # Отправляем админу
+            bot.send_message(ADMIN_ID, order_message, parse_mode='HTML')
+            # Отвечаем пользователю
+            bot.send_message(
+                message.chat.id,
+                "✅ Заказ принят! Админ свяжется с вами."
+            )
+            # Дополнительное уведомление админу
+            bot.send_message(ADMIN_ID, "🔔 Новый заказ!")
+            print("✅ Заказ обработан и отправлен админу!")
     except Exception as e:
         print(f"❌ Ошибка: {e}")
 
-def run_bot():
-    while True:
-        try:
-            bot.remove_webhook()
-            print("🚀 Бот запущен через polling")
-            bot.infinity_polling(timeout=10, long_polling_timeout=5)
-        except Exception as e:
-            print(f"❌ Ошибка: {e}. Перезапуск через 5 секунд...")
-            time.sleep(5)
+# === ВЕБХУК ===
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return jsonify({'status': 'ok'}), 200
+    return jsonify({'status': 'error'}), 403
 
 @app.route('/')
 def home():
-    return "🤖 Бот работает"
+    return "🤖 Бот STYLEVTB работает!"
 
 @app.route('/health')
 def health():
     return "OK", 200
 
+# === ЗАПУСК ===
 if __name__ == "__main__":
-    # Запускаем бота в фоновом потоке
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+    
